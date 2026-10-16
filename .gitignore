@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+.next/
+.turbo/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test and coverage
+coverage/
+.nyc_output/
+
+# Caches
+.cache/
+.parcel-cache/
+.vite/
+.eslintcache
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+
+# Optional package managers
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
