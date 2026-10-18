@@ -88,7 +88,8 @@ Open the URL printed in the terminal (usually `http://localhost:5173` or `http:/
 
 | Variable | Purpose | Required |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Server-side key used by `api/generate.js` to call the Anthropic API. Never exposed to the browser. | Yes (production) |
+| `GEMINI_API_KEY` | Google Gemini API key (100% free tier at Google AI Studio). Used by `api/generate.js`. | Yes (either Gemini or Anthropic) |
+| `ANTHROPIC_API_KEY` | Server-side key used by `api/generate.js` for Anthropic Claude (alternative). | No (if GEMINI_API_KEY is set) |
 
 > **Never** commit `.env.local` or any file containing your real key. The `.env.example` file contains only placeholder values and is safe to commit.
 

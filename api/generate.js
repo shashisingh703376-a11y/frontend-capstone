@@ -7,6 +7,98 @@ export const maxDuration = 30;
 const MAX_PROMPT_LENGTH = 1000; // characters
 const MAX_BODY_BYTES = 8192; // 8 KB
 
+/**
+ * Call Google Gemini API (100% free at https://aistudio.google.com/app/apikey)
+ * @param {string} apiKey
+ * @param {string} prompt
+ * @returns {Promise<string>}
+ */
+async function callGemini(apiKey, prompt) {
+  // gemini-1.5-flash and gemini-2.0-flash are fast and free
+  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            {
+              text: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        maxOutputTokens: 256,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const err = new Error(errData?.error?.message || `Gemini request failed with status ${response.status}`);
+    err.status = response.status;
+    err.details = errData;
+    throw err;
+  }
+
+  const data = await response.json();
+  return (
+    data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
+    'No response generated.'
+  );
+}
+
+/**
+ * Call Anthropic Claude API (requires paid credit at console.anthropic.com)
+ * @param {string} apiKey
+ * @param {string} prompt
+ * @returns {Promise<string>}
+ */
+async function callAnthropic(apiKey, prompt) {
+  const client = new Anthropic({ apiKey });
+  const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022';
+
+  let message;
+  try {
+    message = await client.messages.create({
+      model: modelName,
+      max_tokens: 256,
+      messages: [
+        {
+          role: 'user',
+          content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
+        },
+      ],
+    });
+  } catch (primaryErr) {
+    if (primaryErr?.status === 404 && modelName !== 'claude-3-haiku-20240307') {
+      message = await client.messages.create({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 256,
+        messages: [
+          {
+            role: 'user',
+            content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
+          },
+        ],
+      });
+    } else {
+      throw primaryErr;
+    }
+  }
+
+  return (
+    message.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('') || 'No response generated.'
+  );
+}
+
 /** @type {import('@vercel/node').VercelRequest} */
 export default async function handler(req, res) {
   // Only allow POST
@@ -15,7 +107,6 @@ export default async function handler(req, res) {
   }
 
   // ── Rate limiting ──────────────────────────────────────────────────────────
-  // Use the forwarded IP, falling back to the socket address.
   const ip =
     (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() ||
     req.socket?.remoteAddress ||
@@ -31,7 +122,6 @@ export default async function handler(req, res) {
   }
 
   // ── Input validation ───────────────────────────────────────────────────────
-  // Guard against excessively large request bodies.
   const contentLength = parseInt(req.headers['content-length'] ?? '0', 10);
   if (contentLength > MAX_BODY_BYTES) {
     return res.status(413).json({ error: 'Request body too large.' });
@@ -51,74 +141,37 @@ export default async function handler(req, res) {
     });
   }
 
-  // ── Anthropic call ─────────────────────────────────────────────────────────
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ANTHROPIC_API_KEY is not set');
-    return res.status(500).json({ error: 'Server configuration error.' });
+  // ── AI Provider Selection ──────────────────────────────────────────────────
+  // Prefers GEMINI_API_KEY (free), falls back to ANTHROPIC_API_KEY
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  if (!geminiKey && !anthropicKey) {
+    return res.status(500).json({
+      error: 'Server configuration error: Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is configured in Vercel.',
+    });
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-  // Use a valid Anthropic model: claude-3-5-haiku-20241022 (fast, capable)
-  // or fall back to claude-3-haiku-20240307 if specified
-  const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022';
-
   try {
-    let message;
-    try {
-      message = await client.messages.create({
-        model: modelName,
-        max_tokens: 256,
-        messages: [
-          {
-            role: 'user',
-            content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${trimmedPrompt}`,
-          },
-        ],
-      });
-    } catch (primaryErr) {
-      // If 3.5 haiku isn't enabled or throws not_found, fall back to claude-3-haiku-20240307
-      if (primaryErr?.status === 404 && modelName !== 'claude-3-haiku-20240307') {
-        console.warn('Falling back to claude-3-haiku-20240307');
-        message = await client.messages.create({
-          model: 'claude-3-haiku-20240307',
-          max_tokens: 256,
-          messages: [
-            {
-              role: 'user',
-              content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${trimmedPrompt}`,
-            },
-          ],
-        });
-      } else {
-        throw primaryErr;
-      }
+    let text;
+    if (geminiKey) {
+      text = await callGemini(geminiKey, trimmedPrompt);
+    } else {
+      text = await callAnthropic(anthropicKey, trimmedPrompt);
     }
-
-    const text =
-      message.content
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text)
-        .join('') || 'No response generated.';
 
     return res.status(200).json({ title: 'Generated output', body: text });
   } catch (err) {
-    // Log full error server-side; never expose secrets to the client.
-    console.error('Anthropic API error:', err);
+    console.error('AI provider error:', err);
 
     if (err?.status === 429) {
-      return res.status(502).json({ error: 'AI provider is rate-limited. Please try again shortly.' });
+      return res.status(502).json({ error: 'AI provider rate-limited. Please wait a few seconds and retry.' });
     }
 
-    if (err?.status === 401) {
+    if (err?.status === 400 || err?.status === 401 || err?.status === 403) {
+      const provider = geminiKey ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY';
       return res.status(500).json({
-        error: 'Invalid AI API key or unauthorized. Please verify ANTHROPIC_API_KEY in Vercel.',
-      });
-    }
-
-    if (err?.status === 400 && err?.message?.toLowerCase().includes('credit')) {
-      return res.status(502).json({
-        error: 'AI provider account credit balance is too low.',
+        error: `Invalid API key or unauthorized. Please verify ${provider} in Vercel.`,
       });
     }
 
@@ -127,8 +180,8 @@ export default async function handler(req, res) {
     }
 
     const safeMessage =
-      typeof err?.error?.message === 'string' && !err.error.message.includes('sk-')
-        ? err.error.message
+      typeof err?.message === 'string' && !err.message.includes('AIza') && !err.message.includes('sk-')
+        ? err.message
         : 'Generation failed. Please try again.';
 
     return res.status(500).json({ error: safeMessage });
