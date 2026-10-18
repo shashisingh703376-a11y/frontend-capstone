@@ -3,6 +3,7 @@ import Home from './pages/Home.jsx';
 import ActionStudio from './pages/ActionStudio.jsx';
 import NotFound from './pages/NotFound.jsx';
 import './App.css';
+import { Analytics } from '@vercel/analytics/react';
 
 const routes = {
   '/': Home,
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <Router>
       <Shell />
+      <Analytics />
     </Router>
   );
 }
