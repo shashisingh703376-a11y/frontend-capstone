@@ -95,11 +95,109 @@ async function callAnthropic(apiKey, prompt) {
   );
 }
 
+async function streamGemini(apiKey, prompt, res) {
+  const ai = new GoogleGenAI({ apiKey });
+  const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const systemInstruction =
+    'You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.';
+
+  const stream = await ai.models.generateContentStream({
+    model,
+    contents: prompt,
+    config: {
+      systemInstruction,
+      maxOutputTokens: 256,
+    },
+  });
+
+  let fullText = '';
+  for await (const chunk of stream) {
+    const text = chunk.text;
+    if (text) {
+      fullText += text;
+      res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
+    }
+  }
+
+  res.write(
+    `data: ${JSON.stringify({
+      done: true,
+      title: 'Generated output',
+      body: fullText.trim() || 'No response generated.',
+    })}\n\n`,
+  );
+  res.end();
+}
+
+async function streamAnthropic(apiKey, prompt, res) {
+  const client = new Anthropic({ apiKey });
+  const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022';
+
+  const stream = await client.messages.stream({
+    model: modelName,
+    max_tokens: 256,
+    messages: [
+      {
+        role: 'user',
+        content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
+      },
+    ],
+  });
+
+  let fullText = '';
+  for await (const event of stream) {
+    if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+      fullText += event.delta.text;
+      res.write(`data: ${JSON.stringify({ chunk: event.delta.text })}\n\n`);
+    }
+  }
+
+  res.write(
+    `data: ${JSON.stringify({
+      done: true,
+      title: 'Generated output',
+      body: fullText.trim() || 'No response generated.',
+    })}\n\n`,
+  );
+  res.end();
+}
+
 /** @type {import('@vercel/node').VercelRequest} */
 export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── Development-Only Failure Simulation (FE-08) ────────────────────────────
+  // Strictly disabled in production; never exposes internal secrets.
+  const isDev = process.env.NODE_ENV !== 'production' && process.env.VERCEL_ENV !== 'production';
+  const simulateError = isDev ? (req.body?.simulateError || req.headers['x-simulate-error']) : null;
+
+  if (simulateError === 'rateLimit') {
+    res.setHeader('Retry-After', '15');
+    return res.status(429).json({
+      error: 'Too many requests (simulated 429). Please wait before trying again.',
+      retryAfter: 15,
+    });
+  }
+
+  if (simulateError === 'midstream') {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+    res.write(`data: ${JSON.stringify({ chunk: 'Starting draft announcement: ' })}\n\n`);
+    res.write(`data: ${JSON.stringify({ chunk: 'Analyzing product positioning and tone... ' })}\n\n`);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    res.write(
+      `data: ${JSON.stringify({
+        error: 'Simulated mid-stream failure: Stream disconnected during response generation.',
+      })}\n\n`,
+    );
+    res.end();
+    return;
   }
 
   // ── Rate limiting ──────────────────────────────────────────────────────────
@@ -123,7 +221,7 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'Request body too large.' });
   }
 
-  const { prompt } = req.body ?? {};
+  const { prompt, stream = false } = req.body ?? {};
 
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt must be a non-empty string.' });
@@ -146,6 +244,35 @@ export default async function handler(req, res) {
     return res.status(500).json({
       error: 'Server configuration error: Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is configured in Vercel.',
     });
+  }
+
+  const wantsStream = stream || req.headers.accept?.includes('text/event-stream');
+
+  if (wantsStream) {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+    try {
+      if (geminiKey) {
+        await streamGemini(geminiKey, trimmedPrompt, res);
+      } else {
+        await streamAnthropic(anthropicKey, trimmedPrompt, res);
+      }
+      return;
+    } catch (streamErr) {
+      console.error('AI streaming error:', streamErr);
+      const safeErrMessage =
+        typeof streamErr?.message === 'string' &&
+        !streamErr.message.includes('AIza') &&
+        !streamErr.message.includes('sk-')
+          ? streamErr.message
+          : 'Streaming failed during response generation.';
+      res.write(`data: ${JSON.stringify({ error: safeErrMessage })}\n\n`);
+      res.end();
+      return;
+    }
   }
 
   try {

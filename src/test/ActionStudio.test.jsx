@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import ActionStudio from '../pages/ActionStudio.jsx';
+import ActionStudio, { EXAMPLE_PROMPTS } from '../pages/ActionStudio.jsx';
 
 // Mock fakeGenerate so tests don't hit the real API
 vi.mock('../lib/fakeGenerate.js', async (importOriginal) => {
@@ -14,8 +14,9 @@ vi.mock('../lib/fakeGenerate.js', async (importOriginal) => {
 import { fakeGenerate } from '../lib/fakeGenerate.js';
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
+
 
 describe('ActionStudio', () => {
   it('renders the prompt textarea', () => {
@@ -23,10 +24,44 @@ describe('ActionStudio', () => {
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
+  it('shows first-run empty state with example prompt chips when prompt is empty', () => {
+    render(<ActionStudio />);
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '' } });
+
+    expect(screen.getByText(/need inspiration\? choose a starter prompt/i)).toBeInTheDocument();
+    EXAMPLE_PROMPTS.forEach((item) => {
+      expect(screen.getByRole('button', { name: new RegExp(item.label, 'i') })).toBeInTheDocument();
+    });
+  });
+
+  it('populates prompt textarea when an example chip is clicked', () => {
+    render(<ActionStudio />);
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '' } });
+
+    const firstExample = EXAMPLE_PROMPTS[0];
+    const chip = screen.getByRole('button', { name: new RegExp(firstExample.label, 'i') });
+    fireEvent.click(chip);
+
+    expect(textarea).toHaveValue(firstExample.prompt);
+  });
+
   it('shows a validation error when Generate is clicked with an empty prompt', async () => {
     render(<ActionStudio />);
     const textarea = screen.getByRole('textbox');
     fireEvent.change(textarea, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(fakeGenerate).not.toHaveBeenCalled();
+  });
+
+  it('shows a validation error when prompt is only whitespace', async () => {
+    render(<ActionStudio />);
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: '    \n\t  ' } });
     fireEvent.click(screen.getByRole('button', { name: /generate/i }));
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -58,14 +93,79 @@ describe('ActionStudio', () => {
     });
   });
 
-  it('displays error message when fakeGenerate rejects', async () => {
-    fakeGenerate.mockRejectedValueOnce(new Error('Rate limited.'));
+  it('displays skeleton loading indicator while request is in flight', async () => {
+    let resolvePromise;
+    fakeGenerate.mockImplementationOnce(() => new Promise((resolve) => {
+      resolvePromise = resolve;
+    }));
+
     render(<ActionStudio />);
     const textarea = screen.getByRole('textbox');
-    fireEvent.change(textarea, { target: { value: 'Write something.' } });
+    fireEvent.change(textarea, { target: { value: 'Slow prompt test' } });
     fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    expect(screen.getByRole('status', { name: /generating response/i })).toBeInTheDocument();
+
+    resolvePromise({ title: 'Done', body: 'Response arrived' });
     await waitFor(() => {
-      expect(screen.getByText(/rate limited/i)).toBeInTheDocument();
+      expect(screen.getByText('Response arrived')).toBeInTheDocument();
+    });
+  });
+
+  it('provides a Stop button that halts in-flight generation', async () => {
+    fakeGenerate.mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<ActionStudio />);
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Long running generation' } });
+    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    const stopBtn = screen.getByRole('button', { name: /stop generation/i });
+    expect(stopBtn).toBeInTheDocument();
+
+    fireEvent.click(stopBtn);
+    await waitFor(() => {
+      expect(screen.getByText(/generation stopped by user/i)).toBeInTheDocument();
+    });
+  });
+
+  it('displays error message and allows de-duplicated retry when request fails mid-stream', async () => {
+    fakeGenerate
+      .mockRejectedValueOnce(new Error('Simulated mid-stream failure: Stream disconnected'))
+      .mockResolvedValueOnce({ title: 'Generated output', body: 'Recovered copy!' });
+
+    render(<ActionStudio />);
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Midstream test prompt' } });
+    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/stream disconnected/i)).toBeInTheDocument();
+    });
+
+    const retryBtn = screen.getByRole('button', { name: /^retry$/i });
+    expect(retryBtn).toBeInTheDocument();
+
+    // Click retry
+    fireEvent.click(retryBtn);
+
+
+    // Verify retry called with original prompt
+    await waitFor(() => {
+      expect(screen.getByText(/recovered copy!/i)).toBeInTheDocument();
+    });
+  });
+
+  it('handles empty AI response without crashing', async () => {
+    fakeGenerate.mockResolvedValueOnce({ title: 'Generated output', body: '' });
+
+    render(<ActionStudio />);
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Prompt expecting empty response' } });
+    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/no results were returned by the ai/i)).toBeInTheDocument();
     });
   });
 });

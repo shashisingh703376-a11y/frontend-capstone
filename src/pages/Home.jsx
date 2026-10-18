@@ -33,6 +33,18 @@ export default function Home() {
           Open 3D Configurator
         </Link>
       </article>
+
+      <article className="card">
+        <p className="card__week">FE-04 · Foundation</p>
+        <h2>Deployment Health Check</h2>
+        <p>
+          Live diagnostic telemetry monitoring serverless gateway status, round-trip latency,
+          runtime memory, and active AI model provider readiness.
+        </p>
+        <Link to="/health" className="card__link">
+          Open Health Check
+        </Link>
+      </article>
     </section>
   );
 }

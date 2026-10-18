@@ -91,7 +91,7 @@
 .field {
   display: grid;
   gap: 0.4rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: var(--muted);
   font-size: 0.9rem;
 }
@@ -111,6 +111,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
+  margin-top: 0.9rem;
   margin-bottom: 0.9rem;
 }
 
@@ -130,23 +131,55 @@
 }
 
 .ghost-btn:hover:not(:disabled),
-.retry-btn:hover {
+.retry-btn:hover:not(:disabled) {
   background: var(--accent-soft);
   transform: translateY(-1px);
 }
 
 .ghost-btn:active:not(:disabled),
-.retry-btn:active {
+.retry-btn:active:not(:disabled) {
   transform: translateY(1px) scale(0.98);
 }
 
-.ghost-btn:disabled {
+.ghost-btn:disabled,
+.retry-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
 .ghost-btn--warn {
   border-color: rgba(248, 113, 113, 0.4);
+}
+
+.stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.15);
+  color: #fca5a5;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    transform var(--duration-hover) var(--ease-out),
+    background-color var(--duration-color) var(--ease-in-out);
+}
+
+.stop-btn:hover {
+  background: rgba(248, 113, 113, 0.25);
+  transform: translateY(-1px);
+}
+
+.stop-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.stop-icon {
+  display: inline-block;
+  font-size: 0.75rem;
 }
 
 .toggle {
@@ -173,13 +206,13 @@
   margin: 0;
   padding: 0.85rem 1rem;
   border-radius: 14px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-/* error-card now lives outside .status-region — give it the same spacing */
 .error-card {
   margin-top: 1rem;
 }
-
 
 .status--loading {
   background: var(--accent-soft);
@@ -188,6 +221,13 @@
 .status--success {
   background: var(--success-soft);
   color: #d1fae5;
+  white-space: pre-wrap;
+}
+
+.status--empty {
+  background: var(--bg-elevated-2);
+  border: 1px dashed var(--border);
+  color: var(--muted);
 }
 
 .error-card {
@@ -225,10 +265,16 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ghost-btn:hover:not(:disabled),
-  .retry-btn:hover,
+  .retry-btn:hover:not(:disabled),
+  .stop-btn:hover,
   .ghost-btn:active:not(:disabled),
-  .retry-btn:active {
+  .retry-btn:active:not(:disabled),
+  .stop-btn:active {
     transform: none;
+  }
+
+  .skeleton-line {
+    animation: none !important;
   }
 }
 
@@ -251,4 +297,159 @@
   margin-top: 0.3rem;
   font-size: 0.8rem;
   color: #e53e3e;
+}
+
+/* ── Example prompt chips (First-run Empty State) ───────────────────────── */
+.empty-state {
+  margin-top: 0.6rem;
+  margin-bottom: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: var(--bg-elevated-2);
+  border: 1px dashed var(--border);
+}
+
+.empty-state__title {
+  margin: 0 0 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.example-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.example-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all var(--duration-hover) var(--ease-out);
+}
+
+.example-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.example-chip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ── Skeleton loader ────────────────────────────────────────────────────── */
+.skeleton-card {
+  padding: 1.1rem;
+  border-radius: 14px;
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 0.65rem;
+  min-height: 5.5rem;
+}
+
+.skeleton-line {
+  height: 0.95rem;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(167, 139, 250, 0.08) 25%,
+    rgba(167, 139, 250, 0.24) 50%,
+    rgba(167, 139, 250, 0.08) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+.skeleton-line--title {
+  height: 1.15rem;
+  width: 40%;
+  margin-bottom: 0.25rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.streaming-preview {
+  margin-top: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(167, 139, 250, 0.12);
+  font-size: 0.92rem;
+  color: var(--text);
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.streaming-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--accent-strong);
+  animation: blink 0.9s step-start infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ── Dev Test Edge Cases Panel ─────────────────────────────────────────── */
+.dev-controls {
+  margin-top: 1.25rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px dashed rgba(167, 139, 250, 0.35);
+}
+
+.dev-controls summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dev-controls__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.dev-btn {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+  cursor: pointer;
+}
+
+.dev-btn:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.2);
 }

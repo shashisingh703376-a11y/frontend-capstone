@@ -16,6 +16,7 @@ A weekly-assignment showcase built with **React 19 + Vite**. Each assignment liv
 - **Accessible UI** — `aria-busy`, `aria-live`, `role="alert"`, `prefers-reduced-motion`, skip links, keyboard navigation
 - **Multi-state button** — idle → loading → success / error with CSS micro-animations
 - **Interactive 3D configurator (FE-AA2)** — procedural 3D headphones built with React Three Fiber, OrbitControls, material customization, exploded views, soundwave testing, and WebGL fallbacks
+- **Deployment health check (FE-04)** — live diagnostic route (`#/health`) and serverless endpoint (`/api/health`) reporting system status, round-trip latency, process uptime, memory usage, and AI provider readiness
 - **Per-assignment routing** — hash router keeps every weekly page in place
 
 ---
@@ -114,8 +115,12 @@ npm run test:coverage # generate coverage report
 ```
 Browser (React SPA)
   │
-  ├─ Hash router  /#/  →  Home page
+  ├─ Hash router  /#/               →  Home page
   │               /#/action-studio  →  ActionStudio page
+  │               /#/configurator   →  3D Configurator page
+  │               /#/health         →  Health Check page
+  │
+  ├─ GET  /api/health    (diagnostic telemetry & system status)
   │
   └─ POST /api/generate  (fetch)
           │
@@ -136,6 +141,8 @@ Browser (React SPA)
 
 | File | Purpose |
 |---|---|
+| `api/health.js` | Vercel serverless function; returns system telemetry & health diagnostics |
+| `src/pages/HealthCheck.jsx` | FE-04 diagnostic UI; handles loading, error, empty & live metrics |
 | `api/generate.js` | Vercel serverless function; all server-side logic |
 | `src/lib/rateLimit.js` | Sliding-window rate limiter (shared, testable module) |
 | `src/lib/fakeGenerate.js` | Client fetch wrapper + prompt validator; forced-outcome mock for demo buttons |
