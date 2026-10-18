@@ -59,17 +59,41 @@ export default async function handler(req, res) {
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+  // Use a valid Anthropic model: claude-3-5-haiku-20241022 (fast, capable)
+  // or fall back to claude-3-haiku-20240307 if specified
+  const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022';
+
   try {
-    const message = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 256,
-      messages: [
-        {
-          role: 'user',
-          content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${trimmedPrompt}`,
-        },
-      ],
-    });
+    let message;
+    try {
+      message = await client.messages.create({
+        model: modelName,
+        max_tokens: 256,
+        messages: [
+          {
+            role: 'user',
+            content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${trimmedPrompt}`,
+          },
+        ],
+      });
+    } catch (primaryErr) {
+      // If 3.5 haiku isn't enabled or throws not_found, fall back to claude-3-haiku-20240307
+      if (primaryErr?.status === 404 && modelName !== 'claude-3-haiku-20240307') {
+        console.warn('Falling back to claude-3-haiku-20240307');
+        message = await client.messages.create({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 256,
+          messages: [
+            {
+              role: 'user',
+              content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${trimmedPrompt}`,
+            },
+          ],
+        });
+      } else {
+        throw primaryErr;
+      }
+    }
 
     const text =
       message.content
@@ -79,17 +103,34 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ title: 'Generated output', body: text });
   } catch (err) {
-    // Log full error server-side; never expose it to the client.
+    // Log full error server-side; never expose secrets to the client.
     console.error('Anthropic API error:', err);
 
     if (err?.status === 429) {
       return res.status(502).json({ error: 'AI provider is rate-limited. Please try again shortly.' });
     }
 
+    if (err?.status === 401) {
+      return res.status(500).json({
+        error: 'Invalid AI API key or unauthorized. Please verify ANTHROPIC_API_KEY in Vercel.',
+      });
+    }
+
+    if (err?.status === 400 && err?.message?.toLowerCase().includes('credit')) {
+      return res.status(502).json({
+        error: 'AI provider account credit balance is too low.',
+      });
+    }
+
     if (err?.status >= 500) {
       return res.status(502).json({ error: 'AI provider is temporarily unavailable.' });
     }
 
-    return res.status(500).json({ error: 'Generation failed. Please try again.' });
+    const safeMessage =
+      typeof err?.error?.message === 'string' && !err.error.message.includes('sk-')
+        ? err.error.message
+        : 'Generation failed. Please try again.';
+
+    return res.status(500).json({ error: safeMessage });
   }
 }

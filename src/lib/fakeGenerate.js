@@ -90,9 +90,11 @@ export async function fakeGenerate({ outcome = 'random', prompt = '' } = {}) {
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    const error = new Error(
-      data.error || 'Generation failed. Please try again.',
-    );
+    const message =
+      typeof data.error === 'string'
+        ? data.error
+        : data.error?.message || data.message || 'Generation failed. Please try again.';
+    const error = new Error(message);
     error.code = 'GENERATION_FAILED';
     throw error;
   }
