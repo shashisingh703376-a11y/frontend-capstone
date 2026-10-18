@@ -21,6 +21,18 @@ export default function Home() {
           Open AI Action Studio
         </Link>
       </article>
+
+      <article className="card">
+        <p className="card__week">Week 7 · FE-AA2</p>
+        <h2>Interactive 3D Product Configurator</h2>
+        <p>
+          A responsive 3D headphone studio built with React Three Fiber, procedural
+          geometry, live material controls, exploded driver architecture, and WebGL fallbacks.
+        </p>
+        <Link to="/configurator" className="card__link">
+          Open 3D Configurator
+        </Link>
+      </article>
     </section>
   );
 }

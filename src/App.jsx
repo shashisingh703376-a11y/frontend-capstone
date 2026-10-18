@@ -1,6 +1,7 @@
 import { Router, useRoute, Link } from './router.jsx';
 import Home from './pages/Home.jsx';
 import ActionStudio from './pages/ActionStudio.jsx';
+import ConfiguratorPage from './pages/ConfiguratorPage.jsx';
 import NotFound from './pages/NotFound.jsx';
 import './App.css';
 import { Analytics } from '@vercel/analytics/react';
@@ -8,6 +9,7 @@ import { Analytics } from '@vercel/analytics/react';
 const routes = {
   '/': Home,
   '/action-studio': ActionStudio,
+  '/configurator': ConfiguratorPage,
 };
 
 function Shell() {
@@ -26,6 +28,7 @@ function Shell() {
         <nav aria-label="Primary">
           <Link to="/">Home</Link>
           <Link to="/action-studio">AI Action Studio</Link>
+          <Link to="/configurator">3D Configurator</Link>
         </nav>
       </header>
       <main id="main">

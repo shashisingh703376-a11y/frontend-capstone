@@ -15,6 +15,7 @@ A weekly-assignment showcase built with **React 19 + Vite**. Each assignment liv
 - **Input validation** — client-side character counter + server-side schema checks; oversized bodies are rejected
 - **Accessible UI** — `aria-busy`, `aria-live`, `role="alert"`, `prefers-reduced-motion`, skip links, keyboard navigation
 - **Multi-state button** — idle → loading → success / error with CSS micro-animations
+- **Interactive 3D configurator (FE-AA2)** — procedural 3D headphones built with React Three Fiber, OrbitControls, material customization, exploded views, soundwave testing, and WebGL fallbacks
 - **Per-assignment routing** — hash router keeps every weekly page in place
 
 ---
@@ -213,6 +214,63 @@ npm run build
 | Rate-limit resets instantly in local testing | In-memory store resets on each Vercel cold start | Expected; use `npx vercel dev` to simulate a persistent process locally |
 | `npm run dev` — Generate returns an error | No `/api/generate` route in plain Vite | Use `npx vercel dev` for local serverless function support, or click Simulate Success |
 | Build fails with missing module | `node_modules` out of date | Run `npm install` |
+
+---
+
+## FE-AA2: Interactive 3D Product Configurator
+
+A responsive, high-performance 3D headphone studio built for assignment **FE-AA2** on route `#/configurator`.
+
+### Experience Overview
+
+- **AuraWave Studio Pro**: A premium spatial audio headphone configurator built with **React Three Fiber (v9)** and **Drei (v10)** running on React 19.
+- **Procedural 3D Geometry**:
+  - Headband arch with outer spine and inner memory cushion.
+  - Articulated slider collars and pivot gimbals.
+  - Dual earcups with beveled chambers, metallic accent bezels, and center medallions.
+  - Internal 40mm titanium acoustic drivers and wireframe diaphragms.
+  - Status/power indicator LED with dynamic emission.
+  - Ergonomic memory-foam ear cushions.
+  - Ground contact shadow plane.
+- **Controls & Navigation**:
+  - Full mouse drag and mobile touch gestures (1-finger rotate, 2-finger pinch/zoom) powered by `@react-three/drei` `OrbitControls` with damping and polar angle constraints.
+  - Preset camera angles: 3/4 Perspective, Side Profile, Front View, and Top Down with smooth camera transitions.
+- **Customization Options**:
+  - 4 Curated Colorways: *Midnight Obsidian*, *Platinum Silver*, *Cosmic Cobalt*, and *Sunset Bronze*.
+  - 3 Material Finishes: *Satin Matte* (high roughness), *Anodized Metal* (high metalness), and *High Gloss* (reflective clearcoat).
+- **Interactive Animations**:
+  - **Exploded Driver Architecture**: User-triggered expansion translating cushions, earcups, and driver assemblies outward to inspect internal acoustic hardware.
+  - **Soundwave Acoustic Pulse Test**: User-triggered audio frequency test with rhythmic pulsing scale and expanding soundwave rings.
+  - **Auto-Rotation**: Smooth continuous orbit rotation with toggle and speed control.
+- **Fallbacks & Graceful Degradation**:
+  - WebGL feature detection (`checkWebGLSupport`) gracefully switches to an interactive 2.5D SVG/CSS graphic fallback when WebGL hardware acceleration is unavailable.
+  - React Error Boundary (`ConfiguratorErrorBoundary`) isolates 3D canvas exceptions or context loss, providing user-friendly recovery with a retry button.
+- **Accessibility & Motion Preferences**:
+  - Full keyboard accessibility on all radio buttons, action triggers, and toggles with visible `:focus-visible` focus rings.
+  - Screen reader status region (`aria-live="polite"`) announcing color, finish, exploded view, and camera preset changes.
+  - `prefers-reduced-motion` support: queries system settings and provides an in-app toggle; automatically disables auto-rotation, eases transitions instantly, and halts vibration pulsing.
+
+### Implementation Choices
+
+1. **Procedural Geometry over External GLTF/GLB**: By modeling the headphones using Three.js mathematical primitives (`torusGeometry`, `cylinderGeometry`, `boxGeometry`, `ringGeometry`), the 3D model asset download size is **0 KB**. This guarantees instant loading, zero CORS issues, and no broken external URLs.
+2. **Dynamic Lazy-Loading & Code-Splitting**: The 3D canvas and Three.js runtime are lazy-loaded via `React.lazy` and `Suspense`. The heavy 3D chunk (`ConfiguratorCanvas-*.js`) is isolated and only requested when navigating to `#/configurator`.
+3. **Mobile & Battery Optimization**:
+   - Pixel ratio clamped to `Math.min(window.devicePixelRatio, 2)` to protect mobile GPUs from overheating.
+   - Low polygon budget (~15,000 triangles total).
+   - Focused directional and ambient lighting with soft shadow bias.
+
+### Verified Performance Note
+
+- **3D Asset Network Footprint**: **0 KB** (procedurally generated in code).
+- **Initial Application Chunk (`index-*.js`)**: **247.59 kB** (gzip: **77.05 kB**). The initial landing page footprint increased by only ~14 kB for router and page shells, keeping initial page load fast.
+- **Lazy 3D Configurator Chunk (`ConfiguratorCanvas-*.js`)**: **951.10 kB** (gzip: **255.47 kB**), deferred entirely until the configurator route is opened.
+- **Test Suite**: 26 unit and integration tests passing (`vitest run`), including 10 dedicated tests for configurator controls, fallbacks, and accessibility.
+
+### Future Improvements
+
+- **Web Audio API Integration**: Synchronize real synthesized audio frequencies with the Soundwave Audio Test.
+- **Dynamic Text Engraving**: Allow users to enter custom initials or text projected onto the headphone headband using a canvas-based dynamic texture.
+- **Augmented Reality (WebXR / USDZ Export)**: Support AR Quick Look on iOS and Scene Viewer on Android for placing the customized headphones in physical space.
 
 ---
 
