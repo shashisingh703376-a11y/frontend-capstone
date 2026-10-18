@@ -1,16 +1,16 @@
 # Frontend Capstone
 
-A weekly-assignment showcase built with **React 19 + Vite**. Each assignment lives on its own hash route so earlier work is preserved. The latest assignment (Week 6 / FE-11) adds a real AI generation flow backed by an Anthropic Claude serverless function on Vercel, with rate limiting, input validation, and full accessibility support.
+A weekly-assignment showcase built with **React 19 + Vite**. Each assignment lives on its own hash route so earlier work is preserved. The latest assignment (Week 6 / FE-11) adds a real AI generation flow backed by a Google Gemini / Anthropic Claude serverless function on Vercel, with rate limiting, input validation, and full accessibility support.
 
 ## Live Demo
 
-> **Production URL:** https://frontend-capstone-8rb5ki8by-shashi-3533.vercel.app/
+> **Production URL:** https://frontend-capstone-shashi-3533.vercel.app/
 
 ---
 
 ## Features
 
-- **AI-powered generation** — prompts are sent server-side to Claude; API key never touches the browser
+- **AI-powered generation** — prompts are sent server-side to Google Gemini / Claude; API keys never touch the browser
 - **Rate limiting** — 10 requests per IP per 60-second window on the `/api/generate` endpoint
 - **Input validation** — client-side character counter + server-side schema checks; oversized bodies are rejected
 - **Accessible UI** — `aria-busy`, `aria-live`, `role="alert"`, `prefers-reduced-motion`, skip links, keyboard navigation
