@@ -1,0 +1,254 @@
+.studio {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.studio__intro h1 {
+  margin: 0.2rem 0 0.6rem;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  letter-spacing: -0.03em;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lede {
+  margin: 0;
+  max-width: 48rem;
+  color: var(--muted);
+}
+
+.studio__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 0.9fr);
+  gap: 1rem;
+}
+
+.panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.panel__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
+}
+
+.panel__top h2 {
+  margin: 0;
+}
+
+.state-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.state-pill--loading {
+  background: var(--accent-soft);
+}
+
+.state-pill--success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.state-pill--error {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+.state-pill--disabled {
+  background: #2a2438;
+  color: var(--muted);
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.field textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 6.5rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-elevated-2);
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+.ghost-btn,
+.retry-btn {
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    transform var(--duration-hover) var(--ease-out),
+    background-color var(--duration-color) var(--ease-in-out),
+    border-color var(--duration-color) var(--ease-in-out);
+}
+
+.ghost-btn:hover:not(:disabled),
+.retry-btn:hover {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.ghost-btn:active:not(:disabled),
+.retry-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.ghost-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghost-btn--warn {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.hint {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.status-region {
+  min-height: 4.5rem;
+  margin-top: 1rem;
+}
+
+.status,
+.error-card {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+}
+
+/* error-card now lives outside .status-region — give it the same spacing */
+.error-card {
+  margin-top: 1rem;
+}
+
+
+.status--loading {
+  background: var(--accent-soft);
+}
+
+.status--success {
+  background: var(--success-soft);
+  color: #d1fae5;
+}
+
+.error-card {
+  display: grid;
+  gap: 0.7rem;
+  background: var(--error-soft);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.error-card p {
+  margin: 0;
+}
+
+.retry-btn {
+  justify-self: start;
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.panel--meta ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+}
+
+.panel--meta li + li {
+  margin-top: 0.55rem;
+}
+
+@media (max-width: 840px) {
+  .studio__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost-btn:hover:not(:disabled),
+  .retry-btn:hover,
+  .ghost-btn:active:not(:disabled),
+  .retry-btn:active {
+    transform: none;
+  }
+}
+
+/* ── Character count ────────────────────────────────────────────────────── */
+.char-count {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.char-count--over {
+  color: #e53e3e;
+  font-weight: 600;
+}
+
+/* ── Field validation error ─────────────────────────────────────────────── */
+.field-error {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: #e53e3e;
+}

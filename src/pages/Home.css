@@ -1,0 +1,54 @@
+.home h1 {
+  margin: 0.25rem 0 0.7rem;
+  font-size: clamp(1.9rem, 4vw, 2.7rem);
+  letter-spacing: -0.03em;
+}
+
+.card {
+  max-width: 34rem;
+  margin-top: 1.4rem;
+  padding: 1.2rem 1.25rem 1.3rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.card__week {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.card h2 {
+  margin: 0.35rem 0 0.5rem;
+}
+
+.card p {
+  color: var(--muted);
+}
+
+.card__link {
+  display: inline-flex;
+  margin-top: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 650;
+  transition: transform var(--duration-hover) var(--ease-out);
+}
+
+.card__link:hover {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card__link:hover {
+    transform: none;
+  }
+}

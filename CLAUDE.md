@@ -4,7 +4,9 @@ Use this file as project context when helping with the Frontend Capstone reposit
 
 ## Project
 
-This is a frontend web application. Prefer clear, accessible UI, maintainable component structure, and small, focused changes.
+This is a React 19 + Vite frontend web application. Prefer clear, accessible UI, maintainable component structure, and small, focused changes.
+
+Weekly assignments live on separate hash routes (`#/` home, `#/action-studio` for Week 6). Do not fold a new week into an existing assignment page unless the user asks.
 
 ## Working in this repo
 
