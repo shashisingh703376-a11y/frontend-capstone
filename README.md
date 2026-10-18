@@ -4,7 +4,7 @@ A weekly-assignment showcase built with **React 19 + Vite**. Each assignment liv
 
 ## Live Demo
 
-> **Production URL:** _add your Vercel URL here after deployment_
+> **Production URL:** https://frontend-capstone-8rb5ki8by-shashi-3533.vercel.app/
 
 ---
 
