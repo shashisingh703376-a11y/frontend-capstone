@@ -16,7 +16,7 @@ const MAX_BODY_BYTES = 8192; // 8 KB
  */
 async function callGemini(apiKey, prompt) {
   const ai = new GoogleGenAI({ apiKey });
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const systemInstruction =
     'You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.';
 
@@ -32,10 +32,10 @@ async function callGemini(apiKey, prompt) {
 
     return response.text?.trim() || 'No response generated.';
   } catch (err) {
-    if (model !== 'gemini-2.0-flash' && (err?.status === 404 || err?.message?.toLowerCase().includes('not found'))) {
-      console.warn('Falling back to gemini-2.0-flash');
+    if (model !== 'gemini-3.8-flash' && (err?.status === 404 || err?.message?.toLowerCase().includes('not found'))) {
+      console.warn('Falling back to gemini-3.8-flash');
       const fallbackResponse = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.8-flash',
         contents: prompt,
         config: {
           systemInstruction,
