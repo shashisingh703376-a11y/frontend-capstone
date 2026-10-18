@@ -2,6 +2,7 @@ import { Router, useRoute, Link } from './router.jsx';
 import Home from './pages/Home.jsx';
 import ActionStudio from './pages/ActionStudio.jsx';
 import NotFound from './pages/NotFound.jsx';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './App.css';
 
 const routes = {
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <Router>
       <Shell />
+      <SpeedInsights />
     </Router>
   );
 }
