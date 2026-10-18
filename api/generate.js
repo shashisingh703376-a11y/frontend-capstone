@@ -1,3 +1,4 @@
+import { GoogleGenAI } from '@google/genai';
 import Anthropic from '@anthropic-ai/sdk';
 import { checkRateLimit } from '../src/lib/rateLimit.js';
 
@@ -14,42 +15,37 @@ const MAX_BODY_BYTES = 8192; // 8 KB
  * @returns {Promise<string>}
  */
 async function callGemini(apiKey, prompt) {
-  // gemini-1.5-flash and gemini-2.0-flash are fast and free
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const ai = new GoogleGenAI({ apiKey });
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const systemInstruction =
+    'You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.';
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        systemInstruction,
         maxOutputTokens: 256,
       },
-    }),
-  });
+    });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    const err = new Error(errData?.error?.message || `Gemini request failed with status ${response.status}`);
-    err.status = response.status;
-    err.details = errData;
+    return response.text?.trim() || 'No response generated.';
+  } catch (err) {
+    if (model !== 'gemini-2.0-flash' && (err?.status === 404 || err?.message?.toLowerCase().includes('not found'))) {
+      console.warn('Falling back to gemini-2.0-flash');
+      const fallbackResponse = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt,
+        config: {
+          systemInstruction,
+          maxOutputTokens: 256,
+        },
+      });
+      return fallbackResponse.text?.trim() || 'No response generated.';
+    }
     throw err;
   }
-
-  const data = await response.json();
-  return (
-    data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-    'No response generated.'
-  );
 }
 
 /**
