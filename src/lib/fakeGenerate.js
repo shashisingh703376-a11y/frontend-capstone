@@ -1,7 +1,49 @@
-const SUCCESS_MESSAGES = [
-  'Drafted a concise product brief with three launch angles.',
-  'Generated a warm outreach email and a shorter follow-up.',
-  'Outlined a homepage hero with headline, proof, and CTA.',
+export const SUCCESS_COPY_PACKAGES = [
+  {
+    title: 'Focus on What Truly Matters',
+    body: 'Drafted a concise product brief with three launch angles designed to capture early adopter interest.',
+    structured: {
+      headline: 'Focus on What Truly Matters',
+      body: 'Drafted a concise product brief with three launch angles designed to capture early adopter interest.',
+      callToAction: 'Get Early Access',
+      tone: 'Inspiring & Concise',
+      keyTakeaways: [
+        'Eliminates distraction with zero-clutter interface',
+        'Instant keyboard-first navigation shortcuts',
+        'Real-time collaborative syncing across devices',
+      ],
+    },
+  },
+  {
+    title: 'Quick Coffee & Design Systems?',
+    body: 'Generated a warm outreach email and a shorter follow-up crafted to connect with product leaders respectfully.',
+    structured: {
+      headline: 'Quick Coffee & Design Systems?',
+      body: 'Generated a warm outreach email and a shorter follow-up crafted to connect with product leaders respectfully.',
+      callToAction: 'Book 15 Minutes',
+      tone: 'Warm & Professional',
+      keyTakeaways: [
+        'Personalized reference to their latest work',
+        'Concise, zero-pressure invitation',
+        'Clear, low-friction scheduling options',
+      ],
+    },
+  },
+  {
+    title: 'Crafted for Developers Who Ship',
+    body: 'Outlined a homepage hero with headline, social proof, and a conversion-focused call to action.',
+    structured: {
+      headline: 'Crafted for Developers Who Ship',
+      body: 'Outlined a homepage hero with headline, social proof, and a conversion-focused call to action.',
+      callToAction: 'Start Building Free',
+      tone: 'Bold & Direct',
+      keyTakeaways: [
+        'Punchy value proposition in 5 words',
+        'Trusted by over 10,000 developers',
+        'Zero setup fee and open source core',
+      ],
+    },
+  },
 ];
 
 function pick(list) {
@@ -50,6 +92,7 @@ export function validatePrompt(prompt) {
  * @param {{
  *   outcome?: 'random' | 'success' | 'failure' | 'midstream' | 'rateLimit',
  *   prompt?: string,
+ *   format?: 'structured' | 'plain',
  *   onChunk?: (chunk: string) => void,
  *   signal?: AbortSignal,
  *   simulateError?: 'midstream' | 'rateLimit' | null
@@ -58,13 +101,15 @@ export function validatePrompt(prompt) {
 export async function fakeGenerate({
   outcome = 'random',
   prompt = '',
+  format = 'structured',
   onChunk,
   signal,
   simulateError = null,
 } = {}) {
   // ── Forced outcomes (simulation & demo buttons) ───────────────────────────
   if (outcome === 'success') {
-    const fullText = pick(SUCCESS_MESSAGES);
+    const pkg = pick(SUCCESS_COPY_PACKAGES);
+    const fullText = pkg.body;
     if (onChunk) {
       const parts = fullText.split(' ');
       let current = '';
@@ -76,7 +121,11 @@ export async function fakeGenerate({
     } else {
       await wait(randomDelay(), signal);
     }
-    return { title: 'Generated output', body: fullText };
+    return {
+      title: pkg.title,
+      body: pkg.body,
+      structured: pkg.structured,
+    };
   }
 
   if (outcome === 'failure') {
@@ -133,6 +182,7 @@ export async function fakeGenerate({
       body: JSON.stringify({
         prompt: prompt.trim(),
         stream: true,
+        format,
         ...(simulateError ? { simulateError } : {}),
       }),
       signal,
@@ -204,6 +254,7 @@ export async function fakeGenerate({
                 return {
                   title: payload.title || 'Generated output',
                   body: payload.body || accumulatedText.trim(),
+                  structured: payload.structured || null,
                 };
               }
             } catch (parseErr) {
@@ -232,6 +283,7 @@ export async function fakeGenerate({
     return {
       title: 'Generated output',
       body: accumulatedText.trim() || 'No response received.',
+      structured: null,
     };
   }
 
@@ -240,5 +292,6 @@ export async function fakeGenerate({
   return {
     title: data.title || 'Generated output',
     body: data.body || 'No response received.',
+    structured: data.structured || null,
   };
 }

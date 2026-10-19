@@ -14,20 +14,86 @@ const MAX_BODY_BYTES = 8192; // 8 KB
  * @param {string} prompt
  * @returns {Promise<string>}
  */
-async function callGemini(apiKey, prompt) {
+export const STRUCTURED_SYSTEM_INSTRUCTION =
+  'You are an expert marketing copywriting assistant. Return your response strictly as a JSON object matching this schema:\n' +
+  '{\n' +
+  '  "headline": "Punchy, attention-grabbing title",\n' +
+  '  "body": "Compelling core narrative (2-3 sentences)",\n' +
+  '  "callToAction": "Short, persuasive button CTA (2-4 words)",\n' +
+  '  "tone": "Tone descriptor (e.g. Bold, Friendly, Urgency, Inspiring)",\n' +
+  '  "keyTakeaways": ["Key differentiator or bullet 1", "Key differentiator or bullet 2", "Key differentiator or bullet 3"]\n' +
+  '}\n' +
+  'Respond strictly with valid JSON. No markdown code fences, no explanations.';
+
+export const PLAIN_SYSTEM_INSTRUCTION =
+  'You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.';
+
+/**
+ * Robustly parses structured copy JSON output or extracts key-value fallbacks.
+ * @param {string} rawText
+ * @returns {{ headline: string, body: string, callToAction: string, tone: string, keyTakeaways: string[] } | null}
+ */
+export function parseStructuredOutput(rawText) {
+  if (!rawText || typeof rawText !== 'string') return null;
+  const cleaned = rawText
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === 'object') {
+      return {
+        headline: String(parsed.headline || 'Generated Copy'),
+        body: String(parsed.body || rawText),
+        callToAction: parsed.callToAction ? String(parsed.callToAction) : 'Learn More',
+        tone: parsed.tone ? String(parsed.tone) : 'Persuasive',
+        keyTakeaways: Array.isArray(parsed.keyTakeaways)
+          ? parsed.keyTakeaways.map(String)
+          : [],
+      };
+    }
+  } catch {
+    const headlineMatch = rawText.match(/headline:\s*([^\n]+)/i);
+    const bodyMatch = rawText.match(/body:\s*([^\n]+)/i);
+    const ctaMatch = rawText.match(/(?:callToAction|cta):\s*([^\n]+)/i);
+    const toneMatch = rawText.match(/tone:\s*([^\n]+)/i);
+    if (headlineMatch || bodyMatch) {
+      return {
+        headline: headlineMatch ? headlineMatch[1].trim() : 'Generated Copy',
+        body: bodyMatch ? bodyMatch[1].trim() : rawText.trim(),
+        callToAction: ctaMatch ? ctaMatch[1].trim() : 'Get Started',
+        tone: toneMatch ? toneMatch[1].trim() : 'Engaging',
+        keyTakeaways: [],
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Call Google Gemini API (100% free at https://aistudio.google.com/app/apikey)
+ * @param {string} apiKey
+ * @param {string} prompt
+ * @param {'structured' | 'plain'} format
+ * @returns {Promise<string>}
+ */
+async function callGemini(apiKey, prompt, format = 'structured') {
   const ai = new GoogleGenAI({ apiKey });
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const systemInstruction =
-    'You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.';
+    format === 'plain' ? PLAIN_SYSTEM_INSTRUCTION : STRUCTURED_SYSTEM_INSTRUCTION;
+
+  const config = {
+    systemInstruction,
+    maxOutputTokens: 384,
+    ...(format === 'structured' ? { responseMimeType: 'application/json' } : {}),
+  };
 
   try {
     const response = await ai.models.generateContent({
       model,
       contents: prompt,
-      config: {
-        systemInstruction,
-        maxOutputTokens: 256,
-      },
+      config,
     });
 
     return response.text?.trim() || 'No response generated.';
@@ -37,10 +103,7 @@ async function callGemini(apiKey, prompt) {
       const fallbackResponse = await ai.models.generateContent({
         model: 'gemini-3.8-flash',
         contents: prompt,
-        config: {
-          systemInstruction,
-          maxOutputTokens: 256,
-        },
+        config,
       });
       return fallbackResponse.text?.trim() || 'No response generated.';
     }
@@ -52,21 +115,25 @@ async function callGemini(apiKey, prompt) {
  * Call Anthropic Claude API (requires paid credit at console.anthropic.com)
  * @param {string} apiKey
  * @param {string} prompt
+ * @param {'structured' | 'plain'} format
  * @returns {Promise<string>}
  */
-async function callAnthropic(apiKey, prompt) {
+async function callAnthropic(apiKey, prompt, format = 'structured') {
   const client = new Anthropic({ apiKey });
   const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022';
+  const systemInstruction =
+    format === 'plain' ? PLAIN_SYSTEM_INSTRUCTION : STRUCTURED_SYSTEM_INSTRUCTION;
 
   let message;
   try {
     message = await client.messages.create({
       model: modelName,
-      max_tokens: 256,
+      max_tokens: 384,
+      system: systemInstruction,
       messages: [
         {
           role: 'user',
-          content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
+          content: prompt,
         },
       ],
     });
@@ -74,11 +141,12 @@ async function callAnthropic(apiKey, prompt) {
     if (primaryErr?.status === 404 && modelName !== 'claude-3-haiku-20240307') {
       message = await client.messages.create({
         model: 'claude-3-haiku-20240307',
-        max_tokens: 256,
+        max_tokens: 384,
+        system: systemInstruction,
         messages: [
           {
             role: 'user',
-            content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
+            content: prompt,
           },
         ],
       });
@@ -95,18 +163,19 @@ async function callAnthropic(apiKey, prompt) {
   );
 }
 
-async function streamGemini(apiKey, prompt, res) {
+async function streamGemini(apiKey, prompt, res, format = 'structured') {
   const ai = new GoogleGenAI({ apiKey });
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const systemInstruction =
-    'You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.';
+    format === 'plain' ? PLAIN_SYSTEM_INSTRUCTION : STRUCTURED_SYSTEM_INSTRUCTION;
 
   const stream = await ai.models.generateContentStream({
     model,
     contents: prompt,
     config: {
       systemInstruction,
-      maxOutputTokens: 256,
+      maxOutputTokens: 384,
+      ...(format === 'structured' ? { responseMimeType: 'application/json' } : {}),
     },
   });
 
@@ -119,27 +188,32 @@ async function streamGemini(apiKey, prompt, res) {
     }
   }
 
+  const structured = parseStructuredOutput(fullText);
   res.write(
     `data: ${JSON.stringify({
       done: true,
-      title: 'Generated output',
-      body: fullText.trim() || 'No response generated.',
+      title: structured?.headline || 'Generated output',
+      body: structured?.body || fullText.trim() || 'No response generated.',
+      structured,
     })}\n\n`,
   );
   res.end();
 }
 
-async function streamAnthropic(apiKey, prompt, res) {
+async function streamAnthropic(apiKey, prompt, res, format = 'structured') {
   const client = new Anthropic({ apiKey });
   const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022';
+  const systemInstruction =
+    format === 'plain' ? PLAIN_SYSTEM_INSTRUCTION : STRUCTURED_SYSTEM_INSTRUCTION;
 
   const stream = await client.messages.stream({
     model: modelName,
-    max_tokens: 256,
+    max_tokens: 384,
+    system: systemInstruction,
     messages: [
       {
         role: 'user',
-        content: `You are a concise copywriting assistant. Respond with only the requested copy — no preamble, no explanation.\n\n${prompt}`,
+        content: prompt,
       },
     ],
   });
@@ -152,11 +226,13 @@ async function streamAnthropic(apiKey, prompt, res) {
     }
   }
 
+  const structured = parseStructuredOutput(fullText);
   res.write(
     `data: ${JSON.stringify({
       done: true,
-      title: 'Generated output',
-      body: fullText.trim() || 'No response generated.',
+      title: structured?.headline || 'Generated output',
+      body: structured?.body || fullText.trim() || 'No response generated.',
+      structured,
     })}\n\n`,
   );
   res.end();
@@ -221,7 +297,7 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'Request body too large.' });
   }
 
-  const { prompt, stream = false } = req.body ?? {};
+  const { prompt, stream = false, format = 'structured' } = req.body ?? {};
 
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ error: 'prompt must be a non-empty string.' });
@@ -256,9 +332,9 @@ export default async function handler(req, res) {
 
     try {
       if (geminiKey) {
-        await streamGemini(geminiKey, trimmedPrompt, res);
+        await streamGemini(geminiKey, trimmedPrompt, res, format);
       } else {
-        await streamAnthropic(anthropicKey, trimmedPrompt, res);
+        await streamAnthropic(anthropicKey, trimmedPrompt, res, format);
       }
       return;
     } catch (streamErr) {
@@ -278,12 +354,17 @@ export default async function handler(req, res) {
   try {
     let text;
     if (geminiKey) {
-      text = await callGemini(geminiKey, trimmedPrompt);
+      text = await callGemini(geminiKey, trimmedPrompt, format);
     } else {
-      text = await callAnthropic(anthropicKey, trimmedPrompt);
+      text = await callAnthropic(anthropicKey, trimmedPrompt, format);
     }
 
-    return res.status(200).json({ title: 'Generated output', body: text });
+    const structured = parseStructuredOutput(text);
+    return res.status(200).json({
+      title: structured?.headline || 'Generated output',
+      body: structured?.body || text,
+      structured,
+    });
   } catch (err) {
     console.error('AI provider error:', err);
 

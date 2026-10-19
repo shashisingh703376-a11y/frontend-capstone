@@ -168,4 +168,36 @@ describe('ActionStudio', () => {
       expect(screen.getByText(/no results were returned by the ai/i)).toBeInTheDocument();
     });
   });
+
+  it('renders structured copy package with headline, tone, key highlights, and CTA button', async () => {
+    fakeGenerate.mockResolvedValueOnce({
+      title: 'Focus on What Matters',
+      body: 'Core body narrative copy here.',
+      structured: {
+        headline: 'Focus on What Matters',
+        body: 'Core body narrative copy here.',
+        callToAction: 'Get Early Access',
+        tone: 'Bold & Direct',
+        keyTakeaways: ['Highlight 1', 'Highlight 2'],
+      },
+    });
+
+    render(<ActionStudio />);
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Structured prompt' } });
+    fireEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 3, name: /Focus on What Matters/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Bold & Direct')).toBeInTheDocument();
+    expect(screen.getByText('Core body narrative copy here.')).toBeInTheDocument();
+    expect(screen.getByText('Highlight 1')).toBeInTheDocument();
+    expect(screen.getByText('Get Early Access')).toBeInTheDocument();
+
+    const copyBtn = screen.getByRole('button', { name: /copy generated copy to clipboard/i });
+    expect(copyBtn).toBeInTheDocument();
+    fireEvent.click(copyBtn);
+  });
 });

@@ -46,6 +46,7 @@ export default function ActionStudio() {
   const [promptError, setPromptError] = useState('');
   const [streamingText, setStreamingText] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const inFlight = useRef(false);
   const requestId = useRef(0);
@@ -97,6 +98,17 @@ export default function ActionStudio() {
       setResult({
         title: 'Cancelled',
         body: 'Generation stopped by user.',
+      });
+    }
+  }
+
+  function handleCopy(textToCopy) {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && textToCopy) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {
+        // Fallback for environments where clipboard permissions are denied
       });
     }
   }
@@ -350,8 +362,51 @@ export default function ActionStudio() {
             {result && !busy ? (
               result.body ? (
                 <div className={`status ${result.title === 'Cancelled' ? 'status--empty' : 'status--success'}`}>
-                  <strong>{result.title}</strong>
-                  <p style={{ margin: '0.4rem 0 0' }}>{result.body}</p>
+                  {result.structured ? (
+                    <div className="structured-copy-card">
+                      <div className="structured-copy-header">
+                        <div>
+                          <span className="copy-tone-pill">{result.structured.tone}</span>
+                          <h3 className="structured-headline">{result.structured.headline}</h3>
+                        </div>
+                        <button
+                          type="button"
+                          className="copy-btn"
+                          onClick={() =>
+                            handleCopy(
+                              `${result.structured.headline}\n\n${result.structured.body}\n\nCTA: ${result.structured.callToAction}`,
+                            )
+                          }
+                          aria-label="Copy generated copy to clipboard"
+                        >
+                          {copied ? '✓ Copied!' : '📋 Copy All'}
+                        </button>
+                      </div>
+
+                      <p className="structured-body-text">{result.structured.body}</p>
+
+                      {result.structured.keyTakeaways?.length > 0 && (
+                        <div className="structured-takeaways">
+                          <span className="takeaways-label">Key Highlights</span>
+                          <ul>
+                            {result.structured.keyTakeaways.map((item, idx) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="structured-cta-row">
+                        <span className="cta-label">Recommended CTA:</span>
+                        <span className="structured-cta-chip">{result.structured.callToAction}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <strong>{result.title}</strong>
+                      <p style={{ margin: '0.4rem 0 0' }}>{result.body}</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="status status--empty" role="status">
